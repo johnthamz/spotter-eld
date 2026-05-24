@@ -1,7 +1,55 @@
 import { useState } from 'react';
-import { MapPin, Navigation, Package, Clock, Truck } from 'lucide-react';
 
-export default function TripForm({ onSubmit, loading }) {
+const HOS_RULES = [
+  '11-Hr Driving',
+  '14-Hr Window',
+  '30-Min Break',
+  '70hr/8-Day',
+  '34-Hr Restart',
+];
+
+/* Inline SVG icons — no external dependency */
+function IconNavigation() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="3 11 22 2 13 21 11 13 3 11" />
+    </svg>
+  );
+}
+
+function IconPackage() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16.5 9.4l-9-5.19M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" />
+      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+      <line x1="12" y1="22.08" x2="12" y2="12" />
+    </svg>
+  );
+}
+
+function IconMapPin() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+      <circle cx="12" cy="10" r="3" />
+    </svg>
+  );
+}
+
+function IconClock() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
+export default function TripForm({ onSubmit, loading, loadingMsg }) {
   const [form, setForm] = useState({
     current_location: '',
     pickup_location: '',
@@ -22,16 +70,24 @@ export default function TripForm({ onSubmit, loading }) {
   return (
     <form onSubmit={handleSubmit} className="trip-form">
       <div className="form-header">
-        <Truck size={28} className="form-icon" />
+        <div className="form-header-icon">🚛</div>
         <div>
           <h2>ELD Trip Planner</h2>
           <p>Enter trip details to generate your route and log sheets</p>
+          <div className="form-rules">
+            {HOS_RULES.map(rule => (
+              <span key={rule} className="rule-chip">{rule}</span>
+            ))}
+          </div>
         </div>
       </div>
 
       <div className="form-grid">
         <div className="form-group">
-          <label><Navigation size={16} /> Current Location</label>
+          <label>
+            <IconNavigation />
+            Current Location
+          </label>
           <input
             type="text"
             name="current_location"
@@ -39,11 +95,15 @@ export default function TripForm({ onSubmit, loading }) {
             onChange={handleChange}
             placeholder="e.g. Chicago, IL"
             required
+            disabled={loading}
           />
         </div>
 
         <div className="form-group">
-          <label><Package size={16} /> Pickup Location</label>
+          <label>
+            <IconPackage />
+            Pickup Location
+          </label>
           <input
             type="text"
             name="pickup_location"
@@ -51,11 +111,15 @@ export default function TripForm({ onSubmit, loading }) {
             onChange={handleChange}
             placeholder="e.g. Indianapolis, IN"
             required
+            disabled={loading}
           />
         </div>
 
         <div className="form-group">
-          <label><MapPin size={16} /> Dropoff Location</label>
+          <label>
+            <IconMapPin />
+            Dropoff Location
+          </label>
           <input
             type="text"
             name="dropoff_location"
@@ -63,11 +127,15 @@ export default function TripForm({ onSubmit, loading }) {
             onChange={handleChange}
             placeholder="e.g. Nashville, TN"
             required
+            disabled={loading}
           />
         </div>
 
         <div className="form-group">
-          <label><Clock size={16} /> Current Cycle Used (hrs)</label>
+          <label>
+            <IconClock />
+            Current Cycle Used (hrs)
+          </label>
           <input
             type="number"
             name="cycle_used_hrs"
@@ -77,16 +145,20 @@ export default function TripForm({ onSubmit, loading }) {
             max="70"
             step="0.5"
             required
+            disabled={loading}
           />
-          <span className="hint">Hours used in current 70hr/8-day cycle</span>
+          <span className="hint">Hours used in current 70hr/8-day cycle (0–70)</span>
         </div>
       </div>
 
       <button type="submit" disabled={loading} className="btn-plan">
         {loading ? (
-          <span className="spinner-row"><span className="spinner" /> Calculating Route…</span>
+          <span className="spinner-row">
+            <span className="spinner" />
+            {loadingMsg || 'Processing…'}
+          </span>
         ) : (
-          <span>🗺️ Plan Trip & Generate Logs</span>
+          <span>Plan Trip &amp; Generate Logs</span>
         )}
       </button>
     </form>

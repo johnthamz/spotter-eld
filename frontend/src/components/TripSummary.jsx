@@ -1,73 +1,74 @@
-import { Clock, MapPin, Fuel, AlertTriangle } from 'lucide-react';
-
 export default function TripSummary({ summary, locations }) {
   if (!summary) return null;
 
   const hours = Math.floor(summary.total_trip_hrs);
-  const mins = Math.round((summary.total_trip_hrs - hours) * 60);
+  const mins  = Math.round((summary.total_trip_hrs - hours) * 60);
 
   return (
     <div className="summary-card">
-      <h3 className="section-title">📊 Trip Summary</h3>
+      <div className="section-label">Trip Overview</div>
+      <h3 className="section-title">Trip Summary</h3>
 
-      <div className="summary-grid">
-        <div className="summary-stat">
-          <MapPin size={20} className="stat-icon blue" />
+      <div className="stats-row">
+        <div className="stat-tile miles">
+          <div className="stat-icon-wrap">🛣️</div>
+          <div className="stat-value">{summary.total_miles.toLocaleString()}</div>
+          <div className="stat-label">Total Miles</div>
+        </div>
+
+        <div className="stat-tile drive">
+          <div className="stat-icon-wrap">🚛</div>
+          <div className="stat-value">{summary.total_drive_hrs.toFixed(1)}h</div>
+          <div className="stat-label">Drive Time</div>
+        </div>
+
+        <div className="stat-tile time">
+          <div className="stat-icon-wrap">⏱️</div>
+          <div className="stat-value">{hours}h {mins}m</div>
+          <div className="stat-label">Total Trip Time</div>
+        </div>
+
+        <div className="stat-tile days">
+          <div className="stat-icon-wrap">📅</div>
+          <div className="stat-value">{summary.num_days}</div>
+          <div className="stat-label">Days on Road</div>
+        </div>
+      </div>
+
+      <div className="route-path">
+        <div className="route-node start">
+          <div className="route-node-dot" />
           <div>
-            <div className="stat-value">{summary.total_miles.toLocaleString()}</div>
-            <div className="stat-label">Total Miles</div>
+            <div className="route-node-label">Start</div>
+            <div className="route-node-name">{locations.current.name}</div>
           </div>
         </div>
 
-        <div className="summary-stat">
-          <Clock size={20} className="stat-icon green" />
+        <div className="route-connector" />
+
+        <div className="route-node pickup">
+          <div className="route-node-dot" />
           <div>
-            <div className="stat-value">{summary.total_drive_hrs.toFixed(1)}h</div>
-            <div className="stat-label">Drive Time</div>
+            <div className="route-node-label">Pickup</div>
+            <div className="route-node-name">{locations.pickup.name}</div>
           </div>
         </div>
 
-        <div className="summary-stat">
-          <Clock size={20} className="stat-icon purple" />
-          <div>
-            <div className="stat-value">{hours}h {mins}m</div>
-            <div className="stat-label">Total Trip Time</div>
-          </div>
-        </div>
+        <div className="route-connector" />
 
-        <div className="summary-stat">
-          <Fuel size={20} className="stat-icon orange" />
+        <div className="route-node dropoff">
+          <div className="route-node-dot" />
           <div>
-            <div className="stat-value">{summary.num_days}</div>
-            <div className="stat-label">Days on Road</div>
+            <div className="route-node-label">Dropoff</div>
+            <div className="route-node-name">{locations.dropoff.name}</div>
           </div>
         </div>
       </div>
 
-      {/* Route summary */}
-      <div className="route-summary">
-        <div className="route-point current">
-          <span className="dot" />
-          <span><strong>Start:</strong> {locations.current.name}</span>
-        </div>
-        <div className="route-line" />
-        <div className="route-point pickup">
-          <span className="dot" />
-          <span><strong>Pickup:</strong> {locations.pickup.name}</span>
-        </div>
-        <div className="route-line" />
-        <div className="route-point dropoff">
-          <span className="dot" />
-          <span><strong>Dropoff:</strong> {locations.dropoff.name}</span>
-        </div>
-      </div>
-
-      {summary.warnings && summary.warnings.length > 0 && (
+      {summary.warnings?.length > 0 && (
         <div className="warnings">
           {summary.warnings.map((w, i) => (
-            <div key={i} className="warning-item">
-              <AlertTriangle size={16} /> {w}
-            </div>
+            <div key={i} className="warning-item">⚠️ {w}</div>
           ))}
         </div>
       )}
