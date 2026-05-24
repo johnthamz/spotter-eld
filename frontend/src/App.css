@@ -805,11 +805,11 @@ body {
   font-weight: 600;
 }
 
-/* ── Dark Canvas Wrapper ── */
+/* ── Canvas Wrapper ── */
 .canvas-wrapper {
-  background: var(--navy-900);
-  border-top: 1px solid var(--border-subtle);
-  border-bottom: 1px solid var(--border-subtle);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
   padding: 16px;
   overflow-x: auto;
 }

@@ -1,9 +1,9 @@
 import { useRef, useEffect } from 'react';
 
 const STATUS_COLORS = {
-  off_duty: '#3b82f6',
-  sleeper:  '#a855f7',
-  driving:  '#22c55e',
+  off_duty: '#1d4ed8',
+  sleeper:  '#7c3aed',
+  driving:  '#10b981',
   on_duty:  '#ef4444',
 };
 
@@ -20,13 +20,13 @@ const CW  = GW / 24;
 const CVW = ML + GW + 28;
 const CVH = MT + GH + 70;
 
-const BG        = '#0a1628';
-const COL_MAJOR = 'rgba(255,255,255,0.12)';
-const COL_MINOR = 'rgba(255,255,255,0.05)';
-const COL_ROW   = 'rgba(255,255,255,0.08)';
-const COL_BORD  = 'rgba(255,255,255,0.2)';
-const COL_TEXT  = '#94a3b8';
-const COL_TOTAL = '#f1f5f9';
+const BG        = '#ffffff';
+const COL_MAJOR = '#94a3b8';
+const COL_MINOR = '#e2e8f0';
+const COL_ROW   = '#e2e8f0';
+const COL_BORD  = '#374151';
+const COL_TEXT  = '#374151';
+const COL_TOTAL = '#1d4ed8';
 
 function drawGrid(ctx, entries) {
   /* ── background ── */
@@ -36,8 +36,8 @@ function drawGrid(ctx, entries) {
   /* ── zebra row fill ── */
   STATUS_ROWS.forEach((_, i) => {
     ctx.fillStyle = i % 2 === 0
-      ? 'rgba(255,255,255,0.02)'
-      : 'rgba(0,0,0,0.15)';
+      ? '#f8fafc'
+      : '#ffffff';
     ctx.fillRect(ML, MT + i * RH, GW, RH);
   });
 
@@ -46,7 +46,7 @@ function drawGrid(ctx, entries) {
     const x = ML + h * CW;
     const isMajor = h % 6 === 0;
     const isEven  = h % 2 === 0;
-    ctx.strokeStyle = isMajor ? COL_MAJOR : isEven ? COL_MINOR : 'rgba(255,255,255,0.03)';
+    ctx.strokeStyle = isMajor ? COL_MAJOR : isEven ? COL_MINOR : '#f1f5f9';
     ctx.lineWidth   = isMajor ? 1 : 0.5;
     ctx.beginPath();
     ctx.moveTo(x, MT);
@@ -145,12 +145,19 @@ function drawGrid(ctx, entries) {
   const totals = { off_duty: 0, sleeper: 0, driving: 0, on_duty: 0 };
   entries.forEach(e => { totals[e.status] = (totals[e.status] || 0) + e.duration_hrs; });
 
+  const TOTAL_COLORS = {
+    off_duty: '#1d4ed8',
+    sleeper:  '#7c3aed',
+    driving:  '#15803d',
+    on_duty:  '#b91c1c',
+  };
+
   ctx.textAlign  = 'left';
   ctx.font       = 'bold 10px "JetBrains Mono", monospace';
   ctx.shadowBlur = 0;
   STATUS_ROWS.forEach((status, i) => {
     const cy = MT + i * RH + RH / 2 + 4;
-    ctx.fillStyle = STATUS_COLORS[status];
+    ctx.fillStyle = TOTAL_COLORS[status];
     ctx.fillText(`${(totals[status] || 0).toFixed(2)}h`, ML + GW + 6, cy);
   });
 
