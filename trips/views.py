@@ -1,6 +1,4 @@
 import requests
-import os
-from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -44,85 +42,89 @@ def serialize_daily_log(dl: DailyLog):
     }
 
 
-def geocode(location: str):
-    """Use Nominatim (free OpenStreetMap) to geocode a location."""
-    try:
-        url = "https://nominatim.openstreetmap.org/search"
-        params = {"q": location, "format": "json", "limit": 1}
-        headers = {"User-Agent": "SpotterELD/1.0"}
-        r = requests.get(url, params=params, headers=headers, timeout=10)
-        data = r.json()
-        if data:
-            return float(data[0]["lat"]), float(data[0]["lon"])
-    except Exception:
-        pass
-    return None, None
+def haversine_miles(lat1, lon1, lat2, lon2):
+    """Straight-line distance fallback when OSRM unavailable."""
+    import math
+    R = 3958.8  # Earth radius in miles
+    d_lat = math.radians(lat2 - lat1)
+    d_lon = math.radians(lon2 - lon1)
+    a = (math.sin(d_lat/2)**2 +
+         math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) *
+         math.sin(d_lon/2)**2)
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+    # Multiply by 1.3 to approximate road distance
+    return R * c * 1.3
 
 
-def get_route_distance(lat1, lon1, lat2, lon2):
-    """Use OSRM free routing to get driving distance in miles."""
+def get_route(lat1, lon1, lat2, lon2):
+    """
+    Try OSRM for real road distance + geometry.
+    Falls back to haversine if OSRM is unreachable.
+    """
     try:
-        url = f"http://router.project-osrm.org/route/v1/driving/{lon1},{lat1};{lon2},{lat2}"
-        params = {"overview": "full", "geometries": "geojson"}
-        r = requests.get(url, params=params, timeout=15)
-        data = r.json()
-        if data.get("code") == "Ok":
-            meters = data["routes"][0]["distance"]
-            miles = meters * 0.000621371
-            geometry = data["routes"][0]["geometry"]["coordinates"]
-            return miles, geometry
+        url = (f"http://router.project-osrm.org/route/v1/driving/"
+               f"{lon1},{lat1};{lon2},{lat2}")
+        r = requests.get(url,
+                         params={"overview": "full", "geometries": "geojson"},
+                         timeout=8)
+        if r.status_code == 200:
+            data = r.json()
+            if data.get("code") == "Ok":
+                miles = data["routes"][0]["distance"] * 0.000621371
+                geom = data["routes"][0]["geometry"]["coordinates"]
+                return miles, geom
     except Exception:
         pass
-    return None, None
+    # Fallback: straight-line * 1.3
+    miles = haversine_miles(lat1, lon1, lat2, lon2)
+    # Simple 2-point geometry
+    geom = [[lon1, lat1], [lon2, lat2]]
+    return miles, geom
 
 
 class PlanTripView(APIView):
     def post(self, request):
         data = request.data
-        current_location = data.get("current_location", "")
-        pickup_location = data.get("pickup_location", "")
-        dropoff_location = data.get("dropoff_location", "")
-        cycle_used = float(data.get("cycle_used_hrs", 0))
+
+        current_location  = data.get("current_location", "")
+        pickup_location   = data.get("pickup_location", "")
+        dropoff_location  = data.get("dropoff_location", "")
+        cycle_used        = float(data.get("cycle_used_hrs", 0))
+
+        # Coordinates sent from the frontend (after browser geocoding)
+        curr_lat  = data.get("current_lat")
+        curr_lon  = data.get("current_lon")
+        pick_lat  = data.get("pickup_lat")
+        pick_lon  = data.get("pickup_lon")
+        drop_lat  = data.get("dropoff_lat")
+        drop_lon  = data.get("dropoff_lon")
 
         if not all([current_location, pickup_location, dropoff_location]):
+            return Response({"error": "All three locations are required."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        if not all([curr_lat, curr_lon, pick_lat, pick_lon, drop_lat, drop_lon]):
             return Response(
-                {"error": "All three locations are required."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+                {"error": "Coordinates missing. Geocoding failed in browser."},
+                status=status.HTTP_400_BAD_REQUEST)
 
-        # Geocode all three locations
-        curr_lat, curr_lon = geocode(current_location)
-        pick_lat, pick_lon = geocode(pickup_location)
-        drop_lat, drop_lon = geocode(dropoff_location)
+        curr_lat, curr_lon = float(curr_lat), float(curr_lon)
+        pick_lat, pick_lon = float(pick_lat), float(pick_lon)
+        drop_lat, drop_lon = float(drop_lat), float(drop_lon)
 
-        if not all([curr_lat, pick_lat, drop_lat]):
-            return Response(
-                {"error": "Could not geocode one or more locations. Please be more specific."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        miles_to_pickup, route1_geom = get_route(curr_lat, curr_lon, pick_lat, pick_lon)
+        miles_to_dropoff, route2_geom = get_route(pick_lat, pick_lon, drop_lat, drop_lon)
 
-        # Get routing distances
-        miles_to_pickup, route1_geom = get_route_distance(curr_lat, curr_lon, pick_lat, pick_lon)
-        miles_pickup_dropoff, route2_geom = get_route_distance(pick_lat, pick_lon, drop_lat, drop_lon)
-
-        if not miles_to_pickup or not miles_pickup_dropoff:
-            return Response(
-                {"error": "Could not calculate route distances."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Plan the trip
         trip = plan_trip(
             current_location=current_location,
             pickup_location=pickup_location,
             dropoff_location=dropoff_location,
             miles_to_pickup=miles_to_pickup,
-            miles_pickup_to_dropoff=miles_pickup_dropoff,
+            miles_pickup_to_dropoff=miles_to_dropoff,
             cycle_used_hrs=cycle_used,
             start_time=datetime.now().replace(minute=0, second=0, microsecond=0),
         )
 
-        # Attach coords to key stops
         for stop in trip.stops:
             if stop.stop_type == "start":
                 stop.lat, stop.lon = curr_lat, curr_lon
@@ -141,11 +143,11 @@ class PlanTripView(APIView):
             },
             "locations": {
                 "current": {"name": current_location, "lat": curr_lat, "lon": curr_lon},
-                "pickup": {"name": pickup_location, "lat": pick_lat, "lon": pick_lon},
+                "pickup":  {"name": pickup_location,  "lat": pick_lat, "lon": pick_lon},
                 "dropoff": {"name": dropoff_location, "lat": drop_lat, "lon": drop_lon},
             },
             "route_geometry": {
-                "to_pickup": route1_geom,
+                "to_pickup":  route1_geom,
                 "to_dropoff": route2_geom,
             },
             "stops": [serialize_stop(s) for s in trip.stops],
