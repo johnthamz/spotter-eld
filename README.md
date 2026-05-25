@@ -47,3 +47,4 @@ Visit: http://localhost:5173
 - **Frontend**: Vercel (free tier)
 
 Set `VITE_API_URL` in Vercel to your Render backend URL.
+# force redeploy 
